@@ -35,7 +35,7 @@ Then load/unload the instance of the BaseServer when the module loads/unloads.
 ```
 The module is now able to use the BaseServer instance to register routes.
 
-# <a name="step-2"></a> Create a Router
+# <a name="step-2"></a> Step 2: Create a Router
 The BaseServer class exposes the express node module for the BITS modules to use. Create a class that encapsulates the router.
 ``` javascript
 const ROUTER_PATH = '/api/tutorials-router/cats';
@@ -132,7 +132,7 @@ To verify the router is working add an `<iron-ajax>` request to the modules page
 </dom-module>
 ```
 
-# <a name="step-3"></a> Upload a File
+# <a name="step-3"></a>Step 3: Upload a File
 A router can be configured to handle file uploads. The BaseServer exposes the multer node module to handle multipart form data requests. Add `POST` request handler to the cats router that accepts an image file.
 ``` javascript
 const os = require('os');
@@ -164,4 +164,87 @@ This simple `POST` just accepts and removes the uploaded file. Add the `<vaadin-
   headers='{"Authorization": "Bearer [[accessToken]]"}'
   method="POST">
 </vaadin-upload>
+```
+
+# <a name="step-4"></a>Step 4: Upload a File and keep it's name
+Now that you can upload a file, you might want to keep it instead of simply unlinking it. In this step we'll show you how to adapt the router to keep the filename and store the file in your OS tmp directory (/tmp in Linux).
+``` javascript
+const os = require('os');
+const path = require('path');
+const BaseServer = global.helper.BaseServer;
+const UtilFs = global.utils.UtilFs;
+const multer = BaseServer.multer;
+const express = BaseServer.express;
+const Router = express.Router;
+
+class CatRouter {
+  constructor() {
+    console.log(os.tmpdir());
+    const storage = multer.diskStorage({
+      destination: function(req, file, cb) {
+        cb(null, os.tmpdir());
+      },
+      filename: function(req, file, cb) {
+        cb(null, file.originalname);
+      }
+    });
+
+    const upload = multer({storage: storage});
+
+    this._router = new Router();
+    this._router.get('/', (req, res) => res.status(200).json({cats: []}));
+    this._router.post('/', upload.single('image'), (req, res) => {
+      UtilFs.exists(path.resolve('req.file.destination, req.file.originalname'))
+      .then(() => res.status(200).json({success: true, error: null}))
+      .catch((err) => res.status(400).json({success: false, error: err.message}));
+    });
+    this._baseServer = null;
+  }
+```
+
+# <a name="step-5"></a>Step 5: Make your own BITS data directory
+Maybe you want to keep this data around and do something with it. If that's the case, create your own data directory by adapting the code below as follows. This clobbers data (if the filename is the same it will get overwritten). You can avoid that with more logic or by adding something to the filename String (Date.now() perhaps).
+``` javascript
+const os = require('os');
+const path = require('path');
+const BaseServer = global.helper.BaseServer;
+const UtilFs = global.utils.UtilFs;
+const multer = BaseServer.multer;
+const express = BaseServer.express;
+const Router = express.Router;
+
+class CatRouter {
+  constructor() {
+    this._catDir = path.resolve(global.paths.data, 'cats/');
+    this._catPicturesDir = path.resolve(global.paths.data, 'cats/pictures/');
+
+    const storage = multer.diskStorage({
+      destination: function(req, file, cb) {
+        cb(null, path.resolve(global.paths.data, 'cats/pictures/'));
+      },
+      filename: function(req, file, cb) {
+        cb(null, file.originalname);
+      }
+    });
+
+    const upload = multer({storage: storage});
+
+    this._router = new Router();
+    this._router.get('/', (req, res) => res.status(200).json({cats: []}));
+    this._router.post('/', upload.single('image'), (req, res) => {
+      UtilFs.exists(path.resolve('req.file.destination, req.file.originalname'))
+      .then(() => res.status(200).json({success: true, error: null}))
+      .catch((err) => res.status(400).json({success: false, error: err.message}));
+    });
+    this._baseServer = null;
+  }
+
+  load(baseServer) {
+    return Promise.resolve()
+    .then(() => {
+      this._baseServer = baseServer;
+      UtilFs.ensureDirectoryExists(this._catDir);
+    })
+    .then(() => this._baseServer.use(ROUTER_PATH, this._router));
+  }
 ```

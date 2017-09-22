@@ -1,0 +1,16 @@
+{
+  "name": "tutorials-router",
+  "version": "1.0.0",
+  "dependencies": {
+    "bits-base": "^2.0.0"
+  },
+  "contentElement": "tutorials-router-app",
+  "contentImport": "/elements/tutorials-router-app/tutorials-router-app.html",
+  "appDir": "app",
+  "scopes": [
+    {"name": "public", "displayName": "Public"}
+  ],
+  "displayName": "Tutorials Router",
+  "icon": "maps:directions",
+  "category": "Tutorials"
+}
